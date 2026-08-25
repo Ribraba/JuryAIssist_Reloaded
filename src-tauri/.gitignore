@@ -8,3 +8,7 @@
 
 # Sidecar binaries (large, platform-specific — fetched/copied at build time)
 /binaries/
+
+# Mobile icon assets (desktop-only app, generated incidentally by `tauri icon`)
+/icons/ios/
+/icons/android/
