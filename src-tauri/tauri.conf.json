@@ -34,6 +34,15 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
-    "externalBin": ["binaries/ffmpeg"]
+    "externalBin": ["binaries/ffmpeg"],
+    "createUpdaterArtifacts": true
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDQyNUM4QjcwMEVEQzRDNDMKUldSRFROd09jSXRjUWk0dWNXenZHNDlUTE1xODN5TUo3TkVoS1VQYitNTmpBOFJRVnpLR05ETnMK",
+      "endpoints": [
+        "https://github.com/Ribraba/JuryAIssist_Reloaded/releases/latest/download/latest.json"
+      ]
+    }
   }
 }

@@ -5,15 +5,18 @@ import ProcessingView from "./components/ProcessingView";
 import ErrorView from "./components/ErrorView";
 import ResultView from "./components/ResultView";
 import SettingsModal from "./components/SettingsModal";
+import UpdateBanner from "./components/UpdateBanner";
 import { useApiKey } from "./hooks/useApiKey";
 import { useTranscription } from "./hooks/useTranscription";
 import { useAudioDrop } from "./hooks/useAudioDrop";
+import { useAppUpdate } from "./hooks/useAppUpdate";
 import { pickAudioFile } from "./lib/filePicker";
 import "./App.css";
 
 function App() {
   const { apiKey, isLoaded, saveApiKey } = useApiKey();
   const [showSettings, setShowSettings] = useState(false);
+  const updateState = useAppUpdate();
 
   useEffect(() => {
     if (isLoaded && !apiKey) setShowSettings(true);
@@ -46,6 +49,13 @@ function App() {
   return (
     <div className="flex h-screen flex-col">
       <Header onOpenSettings={() => setShowSettings(true)} />
+      <UpdateBanner
+        stage={updateState.stage}
+        version={updateState.version}
+        errorMessage={updateState.errorMessage}
+        onInstall={updateState.installUpdate}
+        onDismiss={updateState.dismiss}
+      />
 
       <main className="flex flex-1 flex-col overflow-hidden p-6">
         {(status === "idle" || isDragging) && (
