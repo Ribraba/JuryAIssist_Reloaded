@@ -74,6 +74,10 @@ async fn convert_to_mp3(app: &AppHandle, source: &Path) -> Result<PathBuf, Strin
         .map_err(|e| format!("Impossible de lancer la conversion audio : {e}"))?;
 
     if !output.status.success() {
+        eprintln!(
+            "[DEBUG ffmpeg stderr]\n{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
         return Err(describe_conversion_failure(source));
     }
 

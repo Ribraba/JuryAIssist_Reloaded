@@ -56,8 +56,15 @@ jobs:
         if: matrix.platform == 'macos-latest'
         run: |
           mkdir -p src-tauri/binaries
-          brew install ffmpeg
-          cp "$(which ffmpeg)" "src-tauri/binaries/${{ matrix.sidecar }}"
+          # A `brew install`-linked ffmpeg depends on Homebrew's own dylibs and
+          # breaks on any machine whose Homebrew ffmpeg version differs (or is
+          # absent). Use a statically-linked build instead — no dependencies
+          # beyond the system frameworks every Mac already has.
+          curl -L -o ffmpeg.zip https://www.osxexperts.net/ffmpeg9arm.zip
+          unzip -o ffmpeg.zip ffmpeg
+          codesign --sign - ffmpeg
+          chmod +x ffmpeg
+          mv ffmpeg "src-tauri/binaries/${{ matrix.sidecar }}"
 
       - uses: tauri-apps/tauri-action@v0
         env:
