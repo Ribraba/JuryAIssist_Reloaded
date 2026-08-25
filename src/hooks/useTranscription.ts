@@ -7,7 +7,11 @@ export type TranscriptionStatus = "idle" | "processing" | "done" | "error";
 
 const DEFAULT_ERROR_MESSAGE = "Une erreur est survenue.";
 
-export function useTranscription(apiKey: string, onMissingApiKey: () => void) {
+export function useTranscription(
+  apiKey: string,
+  businessRules: string,
+  onMissingApiKey: () => void,
+) {
   const [status, setStatus] = useState<TranscriptionStatus>("idle");
   const [fileName, setFileName] = useState("");
   const [resultText, setResultText] = useState("");
@@ -16,6 +20,8 @@ export function useTranscription(apiKey: string, onMissingApiKey: () => void) {
 
   const apiKeyRef = useRef(apiKey);
   apiKeyRef.current = apiKey;
+  const businessRulesRef = useRef(businessRules);
+  businessRulesRef.current = businessRules;
 
   async function transcribe(filePath: string) {
     if (!apiKeyRef.current) {
@@ -28,6 +34,7 @@ export function useTranscription(apiKey: string, onMissingApiKey: () => void) {
       const text = await invoke<string>("transcribe", {
         filePath,
         apiKey: apiKeyRef.current,
+        businessRules: businessRulesRef.current,
       });
       completeWithResult(text);
     } catch (error) {

@@ -103,7 +103,7 @@ async fn read_transcription_response(response: reqwest::Response) -> Result<Stri
     Ok(body.trim().to_string())
 }
 
-fn describe_groq_error(status: reqwest::StatusCode, body: &str) -> String {
+pub(crate) fn describe_groq_error(status: reqwest::StatusCode, body: &str) -> String {
     match status.as_u16() {
         401 => "Clé API invalide.".to_string(),
         413 => "Fichier trop volumineux pour Groq.".to_string(),

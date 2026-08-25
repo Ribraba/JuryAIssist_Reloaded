@@ -1,13 +1,16 @@
 mod audio_convert;
 mod groq;
+mod reformat;
 
 #[tauri::command]
 async fn transcribe(
     app: tauri::AppHandle,
     file_path: String,
     api_key: String,
+    business_rules: String,
 ) -> Result<String, String> {
-    groq::transcribe_audio_file(&app, &file_path, &api_key).await
+    let raw_text = groq::transcribe_audio_file(&app, &file_path, &api_key).await?;
+    reformat::reformat_transcript(&raw_text, &business_rules, &api_key).await
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]

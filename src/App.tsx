@@ -6,7 +6,7 @@ import ErrorView from "./components/ErrorView";
 import ResultView from "./components/ResultView";
 import SettingsModal from "./components/SettingsModal";
 import UpdateBanner from "./components/UpdateBanner";
-import { useApiKey } from "./hooks/useApiKey";
+import { useStoredSetting } from "./hooks/useStoredSetting";
 import { useTranscription } from "./hooks/useTranscription";
 import { useAudioDrop } from "./hooks/useAudioDrop";
 import { useAppUpdate } from "./hooks/useAppUpdate";
@@ -14,13 +14,20 @@ import { pickAudioFile } from "./lib/filePicker";
 import "./App.css";
 
 function App() {
-  const { apiKey, isLoaded, saveApiKey } = useApiKey();
+  const { value: apiKey, isLoaded: apiKeyLoaded, save: saveApiKey } = useStoredSetting("apiKey");
+  const {
+    value: businessRules,
+    isLoaded: businessRulesLoaded,
+    save: saveBusinessRules,
+  } = useStoredSetting("businessRules");
+  const settingsLoaded = apiKeyLoaded && businessRulesLoaded;
+
   const [showSettings, setShowSettings] = useState(false);
   const updateState = useAppUpdate();
 
   useEffect(() => {
-    if (isLoaded && !apiKey) setShowSettings(true);
-  }, [isLoaded, apiKey]);
+    if (settingsLoaded && !apiKey) setShowSettings(true);
+  }, [settingsLoaded, apiKey]);
 
   const {
     status,
@@ -32,7 +39,7 @@ function App() {
     transcribe,
     reset,
     copyResult,
-  } = useTranscription(apiKey, () => setShowSettings(true));
+  } = useTranscription(apiKey, businessRules, () => setShowSettings(true));
 
   const { isDragging } = useAudioDrop(transcribe, status === "processing");
 
@@ -41,8 +48,9 @@ function App() {
     if (filePath) transcribe(filePath);
   }
 
-  async function handleSaveApiKey(key: string) {
+  async function handleSaveSettings(key: string, rules: string) {
     await saveApiKey(key);
+    await saveBusinessRules(rules);
     setShowSettings(false);
   }
 
@@ -75,10 +83,11 @@ function App() {
         )}
       </main>
 
-      {isLoaded && showSettings && (
+      {settingsLoaded && showSettings && (
         <SettingsModal
           initialKey={apiKey}
-          onSave={handleSaveApiKey}
+          initialRules={businessRules}
+          onSave={handleSaveSettings}
           onClose={() => setShowSettings(false)}
         />
       )}
