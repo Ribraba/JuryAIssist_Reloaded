@@ -1,0 +1,48 @@
+@import url("https://fonts.googleapis.com/css2?family=Cormorant:wght@500;600;700&family=Montserrat:wght@400;500;600&display=swap");
+@import "tailwindcss";
+
+@theme {
+  --font-sans:
+    "Montserrat", -apple-system, "Segoe UI", "SF Pro Text", Inter, Roboto,
+    Helvetica, Arial, sans-serif;
+  --font-display: "Cormorant", "Montserrat", Georgia, serif;
+
+  --color-ink: #2a2118;
+  --color-ink-soft: #7c6f5e;
+  --color-surface: #f5efe3;
+  --color-card: #fffdf9;
+  --color-border: #e7dfcf;
+  --color-primary: #96721b;
+  --color-primary-hover: #7d5e16;
+  --color-primary-soft: #f1e6cd;
+  --color-gold: #c9a227;
+  --color-success: #5b7553;
+  --color-success-soft: #eef2e9;
+  --color-danger: #a13d2c;
+  --color-danger-soft: #f8ece9;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: var(--color-surface);
+  color: var(--color-ink);
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+}
+
+* {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+textarea,
+input {
+  -webkit-user-select: text;
+  user-select: text;
+}
