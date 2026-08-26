@@ -1,4 +1,4 @@
-use crate::groq::describe_groq_error;
+use crate::error::{from_groq_status, AppError};
 use crate::retry::send_with_rate_limit_retry;
 use serde_json::json;
 
@@ -18,7 +18,7 @@ pub async fn reformat_transcript(
     raw_text: &str,
     business_rules: &str,
     api_key: &str,
-) -> Result<String, String> {
+) -> Result<String, AppError> {
     if business_rules.trim().is_empty() {
         return Ok(raw_text.to_string());
     }
@@ -31,7 +31,7 @@ async fn send_chat_request(
     raw_text: &str,
     business_rules: &str,
     api_key: &str,
-) -> Result<reqwest::Response, String> {
+) -> Result<reqwest::Response, AppError> {
     send_with_rate_limit_retry(|| async {
         let user_message =
             format!("Règles métier :\n{business_rules}\n\nTranscription brute :\n{raw_text}");
@@ -51,31 +51,31 @@ async fn send_chat_request(
             .json(&body)
             .send()
             .await
-            .map_err(|e| format!("Erreur réseau (mise en forme) : {e}"))
+            .map_err(|e| AppError::NetworkError(e.to_string()))
     })
     .await
 }
 
-async fn read_chat_response(response: reqwest::Response) -> Result<String, String> {
+async fn read_chat_response(response: reqwest::Response) -> Result<String, AppError> {
     let status = response.status();
     let body = response
         .text()
         .await
-        .map_err(|e| format!("Réponse illisible : {e}"))?;
+        .map_err(|e| AppError::NetworkError(format!("Réponse illisible : {e}")))?;
 
     if !status.is_success() {
-        return Err(describe_groq_error(status, &body));
+        return Err(from_groq_status(status, &body));
     }
 
     extract_message_content(&body)
 }
 
-fn extract_message_content(body: &str) -> Result<String, String> {
-    let parsed: serde_json::Value =
-        serde_json::from_str(body).map_err(|e| format!("Réponse Groq invalide : {e}"))?;
+fn extract_message_content(body: &str) -> Result<String, AppError> {
+    let parsed: serde_json::Value = serde_json::from_str(body)
+        .map_err(|e| AppError::InvalidResponse(format!("Réponse Groq invalide : {e}")))?;
 
     parsed["choices"][0]["message"]["content"]
         .as_str()
         .map(|s| s.trim().to_string())
-        .ok_or_else(|| "Réponse Groq inattendue.".to_string())
+        .ok_or_else(|| AppError::InvalidResponse("Réponse Groq inattendue.".to_string()))
 }

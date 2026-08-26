@@ -1,7 +1,10 @@
 mod audio_convert;
+mod error;
 mod groq;
 mod reformat;
 mod retry;
+
+use error::AppError;
 
 #[tauri::command]
 async fn transcribe(
@@ -9,7 +12,7 @@ async fn transcribe(
     file_path: String,
     api_key: String,
     business_rules: String,
-) -> Result<String, String> {
+) -> Result<String, AppError> {
     let raw_text = groq::transcribe_audio_file(&app, &file_path, &api_key).await?;
     reformat::reformat_transcript(&raw_text, &business_rules, &api_key).await
 }

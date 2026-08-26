@@ -15,6 +15,11 @@ type Props = {
   onClearFinished: () => void;
 };
 
+type PendingConfirm = {
+  message: string;
+  onConfirm: () => void;
+};
+
 function isDeletable(job: TranscriptionJob): boolean {
   return job.status === "done" || job.status === "error";
 }
@@ -29,10 +34,7 @@ export default function JobList({
   onClearFinished,
 }: Props) {
   const [checkedIds, setCheckedIds] = useState<Set<string>>(new Set());
-  const [pendingConfirm, setPendingConfirm] = useState<{
-    message: string;
-    onConfirm: () => void;
-  } | null>(null);
+  const [pendingConfirm, setPendingConfirm] = useState<PendingConfirm | null>(null);
 
   const finishedCount = jobs.filter(isDeletable).length;
   const checkedDeletableIds = jobs.filter((job) => isDeletable(job) && checkedIds.has(job.id));

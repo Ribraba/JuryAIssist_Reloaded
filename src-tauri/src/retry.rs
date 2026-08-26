@@ -1,3 +1,4 @@
+use crate::error::AppError;
 use std::time::Duration;
 
 const MAX_RATE_LIMIT_ATTEMPTS: u32 = 4;
@@ -7,10 +8,10 @@ const RATE_LIMIT_BASE_DELAY_MS: u64 = 2000;
 /// a 429 (rate limit). Any other status, or a transport error, is returned as-is.
 pub(crate) async fn send_with_rate_limit_retry<F, Fut>(
     mut send_request: F,
-) -> Result<reqwest::Response, String>
+) -> Result<reqwest::Response, AppError>
 where
     F: FnMut() -> Fut,
-    Fut: std::future::Future<Output = Result<reqwest::Response, String>>,
+    Fut: std::future::Future<Output = Result<reqwest::Response, AppError>>,
 {
     for attempt in 0..MAX_RATE_LIMIT_ATTEMPTS {
         let response = send_request().await?;

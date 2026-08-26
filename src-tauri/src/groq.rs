@@ -1,4 +1,5 @@
 use crate::audio_convert;
+use crate::error::{from_groq_status, AppError};
 use crate::retry::send_with_rate_limit_retry;
 use std::path::Path;
 use tauri::AppHandle;
@@ -12,7 +13,7 @@ pub async fn transcribe_audio_file(
     app: &AppHandle,
     file_path: &str,
     api_key: &str,
-) -> Result<String, String> {
+) -> Result<String, AppError> {
     ensure_api_key_present(api_key)?;
 
     let source = Path::new(file_path);
@@ -26,34 +27,32 @@ pub async fn transcribe_audio_file(
     read_transcription_response(response).await
 }
 
-fn ensure_api_key_present(api_key: &str) -> Result<(), String> {
+fn ensure_api_key_present(api_key: &str) -> Result<(), AppError> {
     if api_key.trim().is_empty() {
-        return Err("Aucune clé API Groq renseignée.".to_string());
+        return Err(AppError::MissingApiKey);
     }
     Ok(())
 }
 
-async fn ensure_file_within_size_limit(path: &Path) -> Result<(), String> {
+async fn ensure_file_within_size_limit(path: &Path) -> Result<(), AppError> {
     let metadata = tokio::fs::metadata(path)
         .await
-        .map_err(|_| "Fichier introuvable.".to_string())?;
+        .map_err(|_| AppError::FileNotFound)?;
 
     if metadata.len() > MAX_FILE_BYTES {
         let size_mb = metadata.len() as f64 / 1024.0 / 1024.0;
-        return Err(format!(
-            "Fichier trop volumineux ({size_mb:.1} Mo, limite 25 Mo)."
-        ));
+        return Err(AppError::FileTooLarge { size_mb });
     }
     Ok(())
 }
 
-async fn read_upload_bytes(path: &Path) -> Result<Vec<u8>, String> {
+async fn read_upload_bytes(path: &Path) -> Result<Vec<u8>, AppError> {
     tokio::fs::read(path)
         .await
-        .map_err(|e| format!("Lecture du fichier impossible : {e}"))
+        .map_err(|e| AppError::ReadFailed(e.to_string()))
 }
 
-fn build_file_part(path: &Path, bytes: Vec<u8>) -> Result<reqwest::multipart::Part, String> {
+fn build_file_part(path: &Path, bytes: Vec<u8>) -> Result<reqwest::multipart::Part, AppError> {
     let file_name = path
         .file_name()
         .and_then(|n| n.to_str())
@@ -67,14 +66,14 @@ fn build_file_part(path: &Path, bytes: Vec<u8>) -> Result<reqwest::multipart::Pa
     reqwest::multipart::Part::bytes(bytes)
         .file_name(file_name)
         .mime_str(&mime)
-        .map_err(|e| e.to_string())
+        .map_err(|e| AppError::Other(e.to_string()))
 }
 
 async fn send_transcription_request(
     path: &Path,
     bytes: &[u8],
     api_key: &str,
-) -> Result<reqwest::Response, String> {
+) -> Result<reqwest::Response, AppError> {
     send_with_rate_limit_retry(|| async {
         let file_part = build_file_part(path, bytes.to_vec())?;
         let form = reqwest::multipart::Form::new()
@@ -89,29 +88,20 @@ async fn send_transcription_request(
             .multipart(form)
             .send()
             .await
-            .map_err(|e| format!("Erreur réseau : {e}"))
+            .map_err(|e| AppError::NetworkError(e.to_string()))
     })
     .await
 }
 
-async fn read_transcription_response(response: reqwest::Response) -> Result<String, String> {
+async fn read_transcription_response(response: reqwest::Response) -> Result<String, AppError> {
     let status = response.status();
     let body = response
         .text()
         .await
-        .map_err(|e| format!("Réponse illisible : {e}"))?;
+        .map_err(|e| AppError::NetworkError(format!("Réponse illisible : {e}")))?;
 
     if !status.is_success() {
-        return Err(describe_groq_error(status, &body));
+        return Err(from_groq_status(status, &body));
     }
     Ok(body.trim().to_string())
-}
-
-pub(crate) fn describe_groq_error(status: reqwest::StatusCode, body: &str) -> String {
-    match status.as_u16() {
-        401 => "Clé API invalide.".to_string(),
-        413 => "Fichier trop volumineux pour Groq.".to_string(),
-        429 => "Trop de requêtes, réessayez dans un instant.".to_string(),
-        _ => format!("Erreur Groq ({status}) : {body}"),
-    }
 }

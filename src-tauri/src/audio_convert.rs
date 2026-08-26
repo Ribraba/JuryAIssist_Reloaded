@@ -1,3 +1,4 @@
+use crate::error::AppError;
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 use tauri::AppHandle;
@@ -31,7 +32,14 @@ fn is_natively_supported(path: &Path) -> bool {
         .unwrap_or(false)
 }
 
-pub async fn prepare_upload_file(app: &AppHandle, source: &Path) -> Result<UploadFile, String> {
+fn is_dss(path: &Path) -> bool {
+    path.extension()
+        .and_then(|ext| ext.to_str())
+        .map(|ext| ext.eq_ignore_ascii_case("dss"))
+        .unwrap_or(false)
+}
+
+pub async fn prepare_upload_file(app: &AppHandle, source: &Path) -> Result<UploadFile, AppError> {
     if is_natively_supported(source) {
         return Ok(UploadFile {
             path: source.to_path_buf(),
@@ -46,19 +54,21 @@ pub async fn prepare_upload_file(app: &AppHandle, source: &Path) -> Result<Uploa
     })
 }
 
-async fn convert_to_mp3(app: &AppHandle, source: &Path) -> Result<PathBuf, String> {
+async fn convert_to_mp3(app: &AppHandle, source: &Path) -> Result<PathBuf, AppError> {
     let output_path = temp_output_path();
 
     let sidecar = app
         .shell()
         .sidecar("ffmpeg")
-        .map_err(|e| format!("Conversion audio indisponible : {e}"))?;
+        .map_err(|e| AppError::ConversionUnavailable(e.to_string()))?;
 
     let output = sidecar
         .args([
             "-y",
             "-i",
-            source.to_str().ok_or("Chemin de fichier invalide.")?,
+            source
+                .to_str()
+                .ok_or_else(|| AppError::Other("Chemin de fichier invalide.".to_string()))?,
             "-ar",
             "16000",
             "-ac",
@@ -67,38 +77,28 @@ async fn convert_to_mp3(app: &AppHandle, source: &Path) -> Result<PathBuf, Strin
             "libmp3lame",
             "-b:a",
             "48k",
-            output_path.to_str().ok_or("Chemin de sortie invalide.")?,
+            output_path
+                .to_str()
+                .ok_or_else(|| AppError::Other("Chemin de sortie invalide.".to_string()))?,
         ])
         .output()
         .await
-        .map_err(|e| format!("Impossible de lancer la conversion audio : {e}"))?;
+        .map_err(|e| {
+            AppError::ConversionUnavailable(format!("Impossible de lancer la conversion audio : {e}"))
+        })?;
 
     if !output.status.success() {
+        #[cfg(debug_assertions)]
         eprintln!(
             "[DEBUG ffmpeg stderr]\n{}",
             String::from_utf8_lossy(&output.stderr)
         );
-        return Err(describe_conversion_failure(source));
+        return Err(AppError::ConversionFailed {
+            is_dss: is_dss(source),
+        });
     }
 
     Ok(output_path)
-}
-
-fn describe_conversion_failure(source: &Path) -> String {
-    let extension = source
-        .extension()
-        .and_then(|e| e.to_str())
-        .unwrap_or("")
-        .to_lowercase();
-
-    if extension == "dss" {
-        "Ce fichier DSS n'a pas pu être converti. S'il a été enregistré en \
-         « DSS Pro » ou « DS2 » sur le dictaphone, réglez-le sur DSS classique, \
-         WAV ou MP3."
-            .to_string()
-    } else {
-        "Ce format de fichier audio n'a pas pu être converti.".to_string()
-    }
 }
 
 fn temp_output_path() -> PathBuf {
@@ -107,4 +107,23 @@ fn temp_output_path() -> PathBuf {
         .map(|d| d.as_nanos())
         .unwrap_or_default();
     std::env::temp_dir().join(format!("juryaissist-{unique}.mp3"))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn recognizes_natively_supported_extensions_case_insensitively() {
+        assert!(is_natively_supported(Path::new("memo.MP3")));
+        assert!(is_natively_supported(Path::new("memo.wav")));
+        assert!(!is_natively_supported(Path::new("memo.dss")));
+        assert!(!is_natively_supported(Path::new("memo")));
+    }
+
+    #[test]
+    fn recognizes_dss_extension_case_insensitively() {
+        assert!(is_dss(Path::new("memo.DSS")));
+        assert!(!is_dss(Path::new("memo.wav")));
+    }
 }

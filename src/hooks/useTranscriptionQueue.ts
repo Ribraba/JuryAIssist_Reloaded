@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { baseName } from "../lib/path";
+import { describeError } from "../lib/errors";
 import { loadJobHistory, saveJobHistory } from "../lib/history";
 import {
   COPY_FEEDBACK_DURATION_MS,
-  DEFAULT_ERROR_MESSAGE,
   MAX_CONCURRENT_TRANSCRIPTIONS,
   MISSING_API_KEY_MESSAGE,
   RESULT_SAVE_DEBOUNCE_MS,
@@ -169,10 +169,6 @@ function createQueuedJob(filePath: string): TranscriptionJob {
     errorMessage: "",
     createdAt: Date.now(),
   };
-}
-
-function describeError(error: unknown): string {
-  return typeof error === "string" ? error : DEFAULT_ERROR_MESSAGE;
 }
 
 function lastJobId(jobs: TranscriptionJob[]): string | null {

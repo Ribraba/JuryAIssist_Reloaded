@@ -1,3 +1,8 @@
+export type AppError = {
+  kind: string;
+  message: string;
+};
+
 export type JobStatus = "queued" | "processing" | "done" | "error";
 
 export type TranscriptionJob = {
