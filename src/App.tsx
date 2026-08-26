@@ -5,12 +5,18 @@ import JobList from "./components/JobList";
 import JobDetail from "./components/JobDetail";
 import SettingsModal from "./components/SettingsModal";
 import UpdateBanner from "./components/UpdateBanner";
+import LongSessionBanner from "./components/LongSessionBanner";
+import TimesheetView from "./components/TimesheetView";
 import { useStoredSetting } from "./hooks/useStoredSetting";
 import { useTranscriptionQueue } from "./hooks/useTranscriptionQueue";
+import { useTimesheet } from "./hooks/useTimesheet";
 import { useAudioDrop } from "./hooks/useAudioDrop";
 import { useAppUpdate } from "./hooks/useAppUpdate";
 import { pickAudioFiles } from "./lib/filePicker";
+import { durationMs, isRunningLong } from "./lib/timesheet";
 import "./App.css";
+
+type View = "transcription" | "timesheet";
 
 function App() {
   const { value: apiKey, isLoaded: apiKeyLoaded, save: saveApiKey } = useStoredSetting("apiKey");
@@ -22,7 +28,10 @@ function App() {
   const settingsLoaded = apiKeyLoaded && businessRulesLoaded;
 
   const [showSettings, setShowSettings] = useState(false);
+  const [activeView, setActiveView] = useState<View>("transcription");
+  const [dismissedSessionId, setDismissedSessionId] = useState<string | null>(null);
   const updateState = useAppUpdate();
+  const timesheet = useTimesheet();
 
   useEffect(() => {
     if (settingsLoaded && !apiKey) setShowSettings(true);
@@ -54,11 +63,25 @@ function App() {
     setShowSettings(false);
   }
 
+  function toggleView() {
+    setActiveView((view) => (view === "transcription" ? "timesheet" : "transcription"));
+  }
+
   const selectedJob = jobs.find((job) => job.id === selectedId) ?? null;
+  const { activeSession } = timesheet;
+  const showLongSessionBanner =
+    !!activeSession && isRunningLong(activeSession, Date.now()) && dismissedSessionId !== activeSession.id;
 
   return (
     <div className="flex h-screen flex-col">
-      <Header onOpenSettings={() => setShowSettings(true)} />
+      <Header
+        onOpenSettings={() => setShowSettings(true)}
+        activeView={activeView}
+        onToggleView={toggleView}
+        activeSession={activeSession}
+        onClockIn={timesheet.clockIn}
+        onClockOut={timesheet.clockOut}
+      />
       <UpdateBanner
         stage={updateState.stage}
         version={updateState.version}
@@ -66,9 +89,24 @@ function App() {
         onInstall={updateState.installUpdate}
         onDismiss={updateState.dismiss}
       />
+      {showLongSessionBanner && activeSession && (
+        <LongSessionBanner
+          elapsedMs={durationMs(activeSession, Date.now())}
+          onStopNow={timesheet.clockOut}
+          onOpenJournal={() => setActiveView("timesheet")}
+          onDismiss={() => setDismissedSessionId(activeSession.id)}
+        />
+      )}
 
       <main className="relative flex flex-1 overflow-hidden">
-        {jobs.length > 0 ? (
+        {activeView === "timesheet" ? (
+          <TimesheetView
+            sessions={timesheet.sessions}
+            onSave={timesheet.updateSession}
+            onDelete={timesheet.deleteSession}
+            onAddManual={timesheet.createManualSession}
+          />
+        ) : jobs.length > 0 ? (
           <>
             <JobList
               jobs={jobs}

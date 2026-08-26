@@ -14,7 +14,9 @@ export default function ResultView({ text, onTextChange, copied, onCopy }: Props
         <button
           type="button"
           onClick={onCopy}
-          className={`flex shrink-0 cursor-pointer items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-white transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 ${
+          title={copied ? "Copié" : "Copier"}
+          aria-label={copied ? "Copié" : "Copier"}
+          className={`flex shrink-0 cursor-pointer items-center justify-center rounded-lg p-2 text-white transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 ${
             copied ? "bg-success" : "bg-primary hover:bg-primary-hover"
           }`}
         >
@@ -23,7 +25,6 @@ export default function ResultView({ text, onTextChange, copied, onCopy }: Props
           ) : (
             <Copy className="h-3.5 w-3.5" strokeWidth={2} />
           )}
-          {copied ? "Copié" : "Copier"}
         </button>
       </div>
       <textarea

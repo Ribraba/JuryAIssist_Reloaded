@@ -3,6 +3,12 @@ export type AppError = {
   message: string;
 };
 
+export type WorkSession = {
+  id: string;
+  startedAt: number;
+  endedAt: number | null;
+};
+
 export type JobStatus = "queued" | "processing" | "done" | "error";
 
 export type TranscriptionJob = {

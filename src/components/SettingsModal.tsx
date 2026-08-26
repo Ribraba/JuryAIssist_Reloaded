@@ -37,6 +37,7 @@ export default function SettingsModal({
           <button
             type="button"
             aria-label="Fermer"
+            title="Fermer"
             onClick={onClose}
             className="cursor-pointer rounded-md p-1.5 text-ink-soft transition-colors duration-150 hover:bg-primary-soft hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
           >
@@ -67,6 +68,7 @@ export default function SettingsModal({
             <button
               type="button"
               aria-label={showKey ? "Masquer la clé" : "Afficher la clé"}
+              title={showKey ? "Masquer la clé" : "Afficher la clé"}
               onClick={() => setShowKey((s) => !s)}
               className="absolute right-2 top-1/2 -translate-y-1/2 cursor-pointer rounded-md p-1.5 text-ink-soft transition-colors duration-150 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
             >

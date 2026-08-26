@@ -21,3 +21,7 @@ export const RESULT_SAVE_DEBOUNCE_MS = 400;
 
 export const DEFAULT_ERROR_MESSAGE = "Une erreur est survenue.";
 export const MISSING_API_KEY_MESSAGE = "Aucune clé API Groq renseignée.";
+
+// Au-delà de cette durée, une session de pointage encore ouverte est
+// probablement un oubli d'arrêter le chronomètre plutôt qu'une vraie session.
+export const LONG_SESSION_WARNING_MS = 10 * 60 * 60 * 1000;

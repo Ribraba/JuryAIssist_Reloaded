@@ -51,6 +51,7 @@ export default function UpdateBanner({
           <button
             type="button"
             aria-label="Ignorer"
+            title="Ignorer"
             onClick={onDismiss}
             className="cursor-pointer rounded-md p-1 text-ink-soft transition-colors duration-150 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
           >
