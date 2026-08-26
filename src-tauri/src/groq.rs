@@ -1,4 +1,5 @@
 use crate::audio_convert;
+use crate::retry::send_with_rate_limit_retry;
 use std::path::Path;
 use tauri::AppHandle;
 
@@ -19,8 +20,8 @@ pub async fn transcribe_audio_file(
 
     ensure_file_within_size_limit(&upload_file.path).await?;
 
-    let form = build_upload_form(&upload_file.path).await?;
-    let response = send_transcription_request(form, api_key).await?;
+    let bytes = read_upload_bytes(&upload_file.path).await?;
+    let response = send_transcription_request(&upload_file.path, &bytes, api_key).await?;
 
     read_transcription_response(response).await
 }
@@ -46,18 +47,10 @@ async fn ensure_file_within_size_limit(path: &Path) -> Result<(), String> {
     Ok(())
 }
 
-async fn build_upload_form(path: &Path) -> Result<reqwest::multipart::Form, String> {
-    let bytes = tokio::fs::read(path)
+async fn read_upload_bytes(path: &Path) -> Result<Vec<u8>, String> {
+    tokio::fs::read(path)
         .await
-        .map_err(|e| format!("Lecture du fichier impossible : {e}"))?;
-
-    let file_part = build_file_part(path, bytes)?;
-
-    Ok(reqwest::multipart::Form::new()
-        .part("file", file_part)
-        .text("model", WHISPER_MODEL)
-        .text("language", TRANSCRIPTION_LANGUAGE)
-        .text("response_format", "text"))
+        .map_err(|e| format!("Lecture du fichier impossible : {e}"))
 }
 
 fn build_file_part(path: &Path, bytes: Vec<u8>) -> Result<reqwest::multipart::Part, String> {
@@ -78,16 +71,27 @@ fn build_file_part(path: &Path, bytes: Vec<u8>) -> Result<reqwest::multipart::Pa
 }
 
 async fn send_transcription_request(
-    form: reqwest::multipart::Form,
+    path: &Path,
+    bytes: &[u8],
     api_key: &str,
 ) -> Result<reqwest::Response, String> {
-    reqwest::Client::new()
-        .post(GROQ_TRANSCRIPTIONS_URL)
-        .bearer_auth(api_key)
-        .multipart(form)
-        .send()
-        .await
-        .map_err(|e| format!("Erreur réseau : {e}"))
+    send_with_rate_limit_retry(|| async {
+        let file_part = build_file_part(path, bytes.to_vec())?;
+        let form = reqwest::multipart::Form::new()
+            .part("file", file_part)
+            .text("model", WHISPER_MODEL)
+            .text("language", TRANSCRIPTION_LANGUAGE)
+            .text("response_format", "text");
+
+        reqwest::Client::new()
+            .post(GROQ_TRANSCRIPTIONS_URL)
+            .bearer_auth(api_key)
+            .multipart(form)
+            .send()
+            .await
+            .map_err(|e| format!("Erreur réseau : {e}"))
+    })
+    .await
 }
 
 async fn read_transcription_response(response: reqwest::Response) -> Result<String, String> {

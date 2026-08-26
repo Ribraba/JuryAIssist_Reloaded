@@ -1,16 +1,15 @@
 import { useEffect, useState } from "react";
 import Header from "./components/Header";
 import Dropzone from "./components/Dropzone";
-import ProcessingView from "./components/ProcessingView";
-import ErrorView from "./components/ErrorView";
-import ResultView from "./components/ResultView";
+import JobList from "./components/JobList";
+import JobDetail from "./components/JobDetail";
 import SettingsModal from "./components/SettingsModal";
 import UpdateBanner from "./components/UpdateBanner";
 import { useStoredSetting } from "./hooks/useStoredSetting";
-import { useTranscription } from "./hooks/useTranscription";
+import { useTranscriptionQueue } from "./hooks/useTranscriptionQueue";
 import { useAudioDrop } from "./hooks/useAudioDrop";
 import { useAppUpdate } from "./hooks/useAppUpdate";
-import { pickAudioFile } from "./lib/filePicker";
+import { pickAudioFiles } from "./lib/filePicker";
 import "./App.css";
 
 function App() {
@@ -30,22 +29,23 @@ function App() {
   }, [settingsLoaded, apiKey]);
 
   const {
-    status,
-    fileName,
-    resultText,
+    jobs,
+    selectedId,
+    selectJob,
+    copiedId,
+    enqueue,
+    retry,
+    removeMany,
+    clearFinished,
     setResultText,
-    errorMessage,
-    copied,
-    transcribe,
-    reset,
     copyResult,
-  } = useTranscription(apiKey, businessRules, () => setShowSettings(true));
+  } = useTranscriptionQueue(apiKey, businessRules, () => setShowSettings(true));
 
-  const { isDragging } = useAudioDrop(transcribe, status === "processing");
+  const { isDragging, draggedCount } = useAudioDrop(enqueue);
 
   async function handleBrowse() {
-    const filePath = await pickAudioFile();
-    if (filePath) transcribe(filePath);
+    const filePaths = await pickAudioFiles();
+    if (filePaths.length > 0) enqueue(filePaths);
   }
 
   async function handleSaveSettings(key: string, rules: string) {
@@ -53,6 +53,8 @@ function App() {
     await saveBusinessRules(rules);
     setShowSettings(false);
   }
+
+  const selectedJob = jobs.find((job) => job.id === selectedId) ?? null;
 
   return (
     <div className="flex h-screen flex-col">
@@ -65,21 +67,39 @@ function App() {
         onDismiss={updateState.dismiss}
       />
 
-      <main className="flex flex-1 flex-col overflow-hidden p-6">
-        {(status === "idle" || isDragging) && (
-          <Dropzone isDragging={isDragging} onBrowse={handleBrowse} />
-        )}
-        {status === "processing" && <ProcessingView fileName={fileName} />}
-        {status === "error" && <ErrorView message={errorMessage} onRetry={reset} />}
-        {status === "done" && (
-          <ResultView
-            fileName={fileName}
-            text={resultText}
-            onTextChange={setResultText}
-            copied={copied}
-            onCopy={copyResult}
-            onReset={reset}
-          />
+      <main className="relative flex flex-1 overflow-hidden">
+        {jobs.length > 0 ? (
+          <>
+            <JobList
+              jobs={jobs}
+              selectedId={selectedId}
+              onSelect={selectJob}
+              onAdd={handleBrowse}
+              onRetry={retry}
+              onRemoveMany={removeMany}
+              onClearFinished={clearFinished}
+            />
+            <div className="flex flex-1 flex-col overflow-hidden p-6">
+              {selectedJob && (
+                <JobDetail
+                  job={selectedJob}
+                  copied={copiedId === selectedJob.id}
+                  onRetry={() => retry(selectedJob.id)}
+                  onTextChange={(text) => setResultText(selectedJob.id, text)}
+                  onCopy={() => copyResult(selectedJob.id)}
+                />
+              )}
+            </div>
+            {isDragging && (
+              <div className="absolute inset-6 z-10 flex">
+                <Dropzone isDragging draggedCount={draggedCount} onBrowse={handleBrowse} />
+              </div>
+            )}
+          </>
+        ) : (
+          <div className="flex flex-1 p-6">
+            <Dropzone isDragging={isDragging} draggedCount={draggedCount} onBrowse={handleBrowse} />
+          </div>
         )}
       </main>
 

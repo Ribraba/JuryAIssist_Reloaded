@@ -1,4 +1,5 @@
 use crate::groq::describe_groq_error;
+use crate::retry::send_with_rate_limit_retry;
 use serde_json::json;
 
 const GROQ_CHAT_URL: &str = "https://api.groq.com/openai/v1/chat/completions";
@@ -31,24 +32,28 @@ async fn send_chat_request(
     business_rules: &str,
     api_key: &str,
 ) -> Result<reqwest::Response, String> {
-    let user_message = format!("Règles métier :\n{business_rules}\n\nTranscription brute :\n{raw_text}");
+    send_with_rate_limit_retry(|| async {
+        let user_message =
+            format!("Règles métier :\n{business_rules}\n\nTranscription brute :\n{raw_text}");
 
-    let body = json!({
-        "model": CHAT_MODEL,
-        "temperature": 0.2,
-        "messages": [
-            { "role": "system", "content": SYSTEM_PROMPT },
-            { "role": "user", "content": user_message }
-        ]
-    });
+        let body = json!({
+            "model": CHAT_MODEL,
+            "temperature": 0.2,
+            "messages": [
+                { "role": "system", "content": SYSTEM_PROMPT },
+                { "role": "user", "content": user_message }
+            ]
+        });
 
-    reqwest::Client::new()
-        .post(GROQ_CHAT_URL)
-        .bearer_auth(api_key)
-        .json(&body)
-        .send()
-        .await
-        .map_err(|e| format!("Erreur réseau (mise en forme) : {e}"))
+        reqwest::Client::new()
+            .post(GROQ_CHAT_URL)
+            .bearer_auth(api_key)
+            .json(&body)
+            .send()
+            .await
+            .map_err(|e| format!("Erreur réseau (mise en forme) : {e}"))
+    })
+    .await
 }
 
 async fn read_chat_response(response: reqwest::Response) -> Result<String, String> {

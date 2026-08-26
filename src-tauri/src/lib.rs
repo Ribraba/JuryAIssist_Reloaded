@@ -1,6 +1,7 @@
 mod audio_convert;
 mod groq;
 mod reformat;
+mod retry;
 
 #[tauri::command]
 async fn transcribe(

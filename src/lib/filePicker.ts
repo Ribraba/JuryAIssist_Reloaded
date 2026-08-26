@@ -1,10 +1,11 @@
 import { open } from "@tauri-apps/plugin-dialog";
 import { AUDIO_EXTENSIONS } from "../constants";
 
-export async function pickAudioFile(): Promise<string | null> {
+export async function pickAudioFiles(): Promise<string[]> {
   const selected = await open({
-    multiple: false,
+    multiple: true,
     filters: [{ name: "Audio", extensions: AUDIO_EXTENSIONS }],
   });
-  return typeof selected === "string" ? selected : null;
+  if (!selected) return [];
+  return Array.isArray(selected) ? selected : [selected];
 }
